@@ -28,13 +28,21 @@
     return params;
   }
 
+  /* Tryb „w pamięci” (window.CS_MEMORY_ROUTING): ścieżka nie trafia do adresu strony.
+     Potrzebny tam, gdzie adres nie może przenosić #/ścieżek, np. w osadzonym podglądzie. */
+  const memory = !!window.CS_MEMORY_ROUTING;
+  let memPath = '/tasks';
+
   const router = {
     add(pattern, handler) { routes.push(Object.assign(compile(pattern), { handler })); },
-    path() { return (location.hash || '#/tasks').slice(1) || '/tasks'; },
-    go(path) {
-      if (router.path() === path) CS.app.rerender();
+    path() { return memory ? memPath : ((location.hash || '#/tasks').slice(1) || '/tasks'); },
+    /** Przejście do ścieżki; po zmianie odświeża ekran. */
+    navigate(path) {
+      if (memory) { memPath = path; CS.app.onRoute(); }
+      else if (router.path() === path) CS.app.rerender();
       else location.hash = '#' + path;
     },
+    go(path) { router.navigate(path); },
     resolve() {
       const path = router.path();
       for (const r of routes) {
@@ -42,6 +50,17 @@
         if (params) return { handler: r.handler, params, path };
       }
       return null;
+    },
+    /** Włącza obsługę linków #/… w trybie w pamięci. */
+    start() {
+      if (!memory) return;
+      document.addEventListener('click', (e) => {
+        const a = e.target.closest && e.target.closest('a[href^="#/"]');
+        if (!a || e.defaultPrevented) return;
+        e.preventDefault();
+        const target = a.getAttribute('href').slice(1);
+        setTimeout(() => router.navigate(target), 0); // po obsłudze kliknięcia przez sam link
+      }, true);
     }
   };
 

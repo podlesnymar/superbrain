@@ -52,8 +52,8 @@
       S.setCurrentUser(v);
       const m = R.resolve();
       // po zmianie użytkownika wracamy na listę, jeśli traci dostęp do bieżącej przestrzeni
-      if (m && m.params.id) { const c = S.client(m.params.id); if (!c || !S.canView(c)) { location.hash = '#/clients'; return; } }
-      if (m && m.path.startsWith('/admin') && !(S.hasPerm('users.manage') || S.hasPerm('statuses.edit'))) { location.hash = '#/tasks'; return; }
+      if (m && m.params.id) { const c = S.client(m.params.id); if (!c || !S.canView(c)) { R.navigate('/clients'); return; } }
+      if (m && m.path.startsWith('/admin') && !(S.hasPerm('users.manage') || S.hasPerm('statuses.edit'))) { R.navigate('/tasks'); return; }
       CS.app.rerender(true);
     }, { 'aria-label': 'Przełącz użytkownika (demo)' });
 
@@ -94,20 +94,22 @@
   let lastPath = null;
   CS.app = {
     rerender(full) {
-      const path = R.path();
+      lastPath = R.path();
       render(!!full);
-      lastPath = path;
+    },
+    /** Wołane po zmianie trasy (zmiana hasha albo nawigacja w pamięci). */
+    onRoute() {
+      const path = R.path();
+      const changed = path !== lastPath;
+      CS.app.rerender();
+      if (changed && shell) shell.main.scrollTop = 0;
     }
   };
 
-  window.addEventListener('hashchange', () => {
-    const path = R.path();
-    CS.app.rerender();
-    if (path !== lastPath && shell) shell.main.scrollTop = 0;
-    lastPath = path;
-  });
+  window.addEventListener('hashchange', () => CS.app.onRoute());
   document.addEventListener('DOMContentLoaded', () => {
-    if (!location.hash) location.hash = '#/tasks';
+    R.start();
+    if (!location.hash && !window.CS_MEMORY_ROUTING) location.hash = '#/tasks';
     CS.app.rerender(true);
   });
 })(window.CS = window.CS || {});
